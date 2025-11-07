@@ -14,10 +14,33 @@ const Index = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [purchasedCourseIds, setPurchasedCourseIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
+    checkAuth();
     loadCourses();
   }, []);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setUser(session?.user ?? null);
+    
+    if (session?.user) {
+      loadPurchasedCourses(session.user.id);
+    }
+  };
+
+  const loadPurchasedCourses = async (userId: string) => {
+    const { data: purchases } = await supabase
+      .from('purchases')
+      .select('course_id')
+      .eq('student_id', userId);
+
+    if (purchases) {
+      setPurchasedCourseIds(new Set(purchases.map(p => p.course_id)));
+    }
+  };
 
   const loadCourses = async () => {
     setIsLoading(true);
@@ -141,6 +164,7 @@ const Index = () => {
                   key={course.id}
                   course={course}
                   onViewCourse={(id) => navigate(`/course/${id}`)}
+                  isPurchased={purchasedCourseIds.has(course.id)}
                 />
               ))}
             </div>
